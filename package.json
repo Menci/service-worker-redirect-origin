@@ -1,0 +1,25 @@
+{
+  "name": "service-worker-redirect-origin",
+  "version": "1.0.0",
+  "main": "build.ts",
+  "repository": "https://github.com/Menci/service-worker-redirect-origin.git",
+  "author": "Menci <huanghaorui301@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "build": "esr build.ts",
+    "inject": "esr inject.ts",
+    "format": "prettier --write \"**/*.ts\""
+  },
+  "devDependencies": {
+    "@types/klaw": "^3.0.3",
+    "@types/node": "16",
+    "cheerio": "^1.0.0-rc.10",
+    "esbuild": "^0.14.10",
+    "esbuild-runner": "^2.2.1",
+    "prettier": "^2.5.1",
+    "terser": "^5.10.0"
+  },
+  "dependencies": {
+    "klaw": "^4.0.1"
+  }
+}

@@ -1,0 +1,45 @@
+name: Inject redirect-origin Service Worker to static website
+description: Redirect requests of origin to another given base URL.
+branding:
+  icon: corner-up-right
+  color: purple
+inputs:
+  www-root:
+    description:
+    required: true
+  target-base-url:
+    description:
+    required: true
+  service-worker-filename:
+    description:
+    default: sw.js
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        echo "::group::Resolve www root full path"
+
+        # Since we'll run `cd`
+        WWW_ROOT="$(realpath "$WWW_ROOT")"
+        echo "$WWW_ROOT"
+
+        echo "::endgroup"
+
+        echo "::group::Install dependencies"
+
+        cd "$ACTION_PATH"
+        yarn
+
+        echo "::endgroup"
+
+        echo "::group::Run inject"
+
+        yarn inject "$WWW_ROOT" "$TARGET_BASE_URL" "$SERVICE_WORKER_FILENAME"
+
+        echo "::endgroup"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        WWW_ROOT: ${{ inputs.www-root }}
+        TARGET_BASE_URL: ${{ inputs.target-base-url }}
+        SERVICE_WORKER_FILENAME: ${{ inputs.service-worker-filename }}
