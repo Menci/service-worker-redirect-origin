@@ -10,6 +10,9 @@ inputs:
   target-base-url:
     description:
     required: true
+  http-404-page:
+    description:
+    default: ""
   service-worker-filename:
     description:
     default: sw.js
@@ -35,11 +38,12 @@ runs:
 
         echo "::group::Run inject"
 
-        yarn inject "$WWW_ROOT" "$TARGET_BASE_URL" "$SERVICE_WORKER_FILENAME"
+        yarn inject "$WWW_ROOT" "$TARGET_BASE_URL" "$HTTP_404_PAGE" "$SERVICE_WORKER_FILENAME"
 
         echo "::endgroup"
       env:
         ACTION_PATH: ${{ github.action_path }}
         WWW_ROOT: ${{ inputs.www-root }}
         TARGET_BASE_URL: ${{ inputs.target-base-url }}
+        HTTP_404_PAGE: ${{ inputs.http-404-page }}
         SERVICE_WORKER_FILENAME: ${{ inputs.service-worker-filename }}

@@ -5,9 +5,12 @@
 // The keyword __service_worker__ and __target__ will be replaced
 declare var __service_worker__: string;
 declare var __target__: string;
+declare var __404_page__: string;
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", function () {
-    navigator.serviceWorker.register("/" + __service_worker__ + "?t=" + __target__);
+    if (__404_page__)
+      navigator.serviceWorker.register("/" + __service_worker__ + "?t=" + __target__ + "&404=" + __404_page__);
+    else navigator.serviceWorker.register("/" + __service_worker__ + "?t=" + __target__);
   });
 }

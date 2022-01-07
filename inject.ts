@@ -9,10 +9,11 @@ import { buildPromise } from "./build";
 
 const wwwRoot = process.argv[2];
 const targetBaseUrl = process.argv[3];
-const serviceWorkerFilename = process.argv[4] || "sw.js";
+const _404Page = process.argv[4] || "";
+const serviceWorkerFilename = process.argv[5] || "sw.js";
 
 if (!wwwRoot || !targetBaseUrl) {
-  console.error("Usage: inject <wwwRoot> <targetBaseUrl> [serviceWorkerFilename]");
+  console.error("Usage: inject <wwwRoot> <targetBaseUrl> [404Page] [serviceWorkerFilename]");
   process.exit(1);
 }
 
@@ -30,8 +31,12 @@ function isHtmlFilePath(filePath: string) {
   const installerTemplate = fs.readFileSync(path.resolve(__dirname, "dist/installer.js"), "utf-8");
 
   const replacedInstaller = installerTemplate
-    .replace("__service_worker__", JSON.stringify(serviceWorkerFilename))
-    .replace("__target__", JSON.stringify(encodeURIComponent(targetBaseUrl)));
+    .split("__service_worker__")
+    .join(JSON.stringify(serviceWorkerFilename))
+    .split("__target__")
+    .join(JSON.stringify(encodeURIComponent(targetBaseUrl)))
+    .split("__404_page__")
+    .join(JSON.stringify(encodeURIComponent(_404Page)));
   const installer = (await terser.minify(replacedInstaller, { toplevel: true })).code;
 
   // Write service worker JS file

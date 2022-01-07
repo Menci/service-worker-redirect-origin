@@ -4,7 +4,9 @@
 
 const sw = self as unknown as ServiceWorkerGlobalScope & typeof globalThis;
 
-const targetBaseUrl = new URL(sw.location.href).searchParams.get("t");
+const query = new URL(sw.location.href).searchParams;
+const targetBaseUrl = query.get("t");
+const _404Page = query.get("404");
 
 sw.addEventListener("install", event => {
   event.waitUntil(sw.skipWaiting());
@@ -12,19 +14,23 @@ sw.addEventListener("install", event => {
 
 sw.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
-  if (url.origin !== sw.origin) {
-    event.respondWith(fetch(event.request));
-    return;
+  if (event.request.method !== "GET" || url.origin !== sw.origin) {
+    return event.respondWith(fetch(event.request));
   }
 
-  // Intercept the request of main HTML page and service worker script
-  const newUrl = new URL(targetBaseUrl);
-  newUrl.pathname += url.pathname.slice(1); // Remove leading "/"
-  newUrl.search = url.search;
+  // Intercept the request
+  const newUrl =
+    targetBaseUrl +
+    url.pathname.slice(1) + // Remove leading "/"
+    url.search;
 
   event.respondWith(
     (async () => {
-      const response = await fetch(newUrl.toString());
+      let response = await fetch(newUrl);
+      if (response.status === 404 && _404Page) {
+        response = await fetch(targetBaseUrl + _404Page);
+      }
+
       if (!response.ok) {
         // Oops! the service worker CDN may not available now
         // Fallback to the original URL
