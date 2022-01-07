@@ -5,16 +5,16 @@ branding:
   color: purple
 inputs:
   www-root:
-    description:
+    description: The directory containing the files of your static website.
     required: true
   target-base-url:
-    description:
+    description: The target base url you want to redirect your origin requests to. Should end with a "/".
     required: true
   http-404-page:
-    description:
+    description: The page to fetch when the redirected request responds with HTTP 404. By default fallback to origin.
     default: ""
   service-worker-filename:
-    description:
+    description: The script filename of service worker. Will be written to the `www-root` directory. By default `sw.js`.
     default: sw.js
 runs:
   using: composite

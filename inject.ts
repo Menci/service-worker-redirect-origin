@@ -13,7 +13,7 @@ const _404Page = process.argv[4] || "";
 const serviceWorkerFilename = process.argv[5] || "sw.js";
 
 if (!wwwRoot || !targetBaseUrl) {
-  console.error("Usage: inject <wwwRoot> <targetBaseUrl> [404Page] [serviceWorkerFilename]");
+  console.error("Usage: yarn inject <wwwRoot> <targetBaseUrl> [404Page] [serviceWorkerFilename]");
   process.exit(1);
 }
 
