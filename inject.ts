@@ -48,7 +48,11 @@ function isHtmlFilePath(filePath: string) {
 
   async function processFile(filePath: string) {
     const html = parse(await fs.promises.readFile(filePath, "utf-8"));
-    html.querySelector("body").insertAdjacentHTML("beforeend", `<script>${installer}</script>`);
+
+    const body = html.querySelector("body");
+    if (!body) return;
+
+    body.insertAdjacentHTML("beforeend", `<script>${installer}</script>`);
     await fs.promises.writeFile(filePath, html.outerHTML);
   }
 
