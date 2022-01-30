@@ -15,7 +15,7 @@ sw.addEventListener("install", event => {
 sw.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== sw.origin) {
-    return event.respondWith(fetch(event.request));
+    return;
   }
 
   // Intercept the request
