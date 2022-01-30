@@ -10,7 +10,7 @@ It's useful when your origin domain have no ICP license but you want to optimize
 
 ```yaml
 - name: Inject Service Worker
-  uses: Menci/service-worker-redirect-origin@beta-v1
+  uses: Menci/service-worker-redirect-origin@beta-v2
   with:
     # The directory containing your built static website files.
     www-root: public
