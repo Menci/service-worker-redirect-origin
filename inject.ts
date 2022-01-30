@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-import cheerio from "cheerio";
+import { parse } from "node-html-parser";
 import terser from "terser";
 import klaw from "klaw";
 
@@ -47,11 +47,9 @@ function isHtmlFilePath(filePath: string) {
   // Inject installer script to HTML files
 
   async function processFile(filePath: string) {
-    const $ = cheerio.load(await fs.promises.readFile(filePath, "utf-8"));
-    const scriptTag = $("<script>");
-    scriptTag.html(installer);
-    $("body").append(scriptTag);
-    await fs.promises.writeFile(filePath, $.html());
+    const html = parse(await fs.promises.readFile(filePath, "utf-8"));
+    html.querySelector("body").insertAdjacentHTML("beforeend", `<script>${installer}</script>`);
+    await fs.promises.writeFile(filePath, html.outerHTML);
   }
 
   klaw(wwwRoot)
