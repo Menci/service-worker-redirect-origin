@@ -24,17 +24,21 @@ sw.addEventListener("fetch", event => {
     url.pathname.slice(1) + // Remove leading "/"
     url.search;
 
+  const fetchOptions: RequestInit = {
+    redirect: "follow"
+  };
+
   event.respondWith(
     (async () => {
-      let response = await fetch(newUrl);
+      let response = await fetch(newUrl, fetchOptions);
       if (response.status === 404 && _404Page) {
-        response = await fetch(targetBaseUrl + _404Page);
+        response = await fetch(targetBaseUrl + _404Page, fetchOptions);
       }
 
       if (!response.ok) {
         // Oops! the service worker CDN may not available now
         // Fallback to the original URL
-        return fetch(event.request);
+        return fetch(event.request, fetchOptions);
       }
 
       return response;
