@@ -30,18 +30,23 @@ sw.addEventListener("fetch", event => {
 
   event.respondWith(
     (async () => {
-      let response = await fetch(newUrl, fetchOptions);
-      if (response.status === 404 && _404Page) {
-        response = await fetch(targetBaseUrl + _404Page, fetchOptions);
-      }
+      try {
+        let response = await fetch(newUrl, fetchOptions);
+        if (response.status === 404 && _404Page) {
+          response = await fetch(targetBaseUrl + _404Page, fetchOptions);
+        }
 
-      if (!response.ok) {
-        // Oops! the service worker CDN may not available now
-        // Fallback to the original URL
+        if (!response.ok) {
+          // Oops! the service worker CDN may not available now
+          // Fallback to the original URL
+          return fetch(event.request, fetchOptions);
+        }
+
+        return response;
+      } catch {
+        // Network error on fetch()
         return fetch(event.request, fetchOptions);
       }
-
-      return response;
     })()
   );
 });
