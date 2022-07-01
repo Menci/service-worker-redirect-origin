@@ -1,5 +1,5 @@
 /// <reference no-default-lib="true" />
-/// <reference lib="es2020" />
+/// <reference lib="es2021" />
 /// <reference lib="WebWorker" />
 
 const sw = self as unknown as ServiceWorkerGlobalScope & typeof globalThis;
@@ -7,6 +7,27 @@ const sw = self as unknown as ServiceWorkerGlobalScope & typeof globalThis;
 const query = new URL(sw.location.href).searchParams;
 const targetBaseUrl = query.get("t");
 const _404Page = query.get("404");
+
+if (!Promise.any) {
+  Promise.any = <T>(promises: Iterable<T | Promise<T>>): Promise<Awaited<T>> => {
+    return Promise.all(
+      [...promises].map(promise => {
+        return new Promise((resolve, reject) =>
+          Promise
+            .resolve(promise)
+            // When a promise fulfilled, we call reject to bail out Promise.all
+            // When a promise rejected, we call resolve to continue Promise.all
+            .then(reject, resolve)
+        );
+      })
+    ).then(
+      // The resolved are actually aggregated errors
+      errors => Promise.reject(errors),
+      // The reject is the first fulfilled promise (which causes the bail out)
+      fastest => Promise.resolve<Awaited<T>>(fastest)
+    )
+  }
+}
 
 sw.addEventListener("install", event => {
   event.waitUntil(sw.skipWaiting());
@@ -18,11 +39,18 @@ sw.addEventListener("fetch", event => {
     return;
   }
 
-  function fetchOrigin() {
-    return fetch(event.request);
+
+  let abortController: AbortController | undefined;
+  if (typeof AbortController === "function") {
+    abortController = new AbortController();
   }
 
-  async function fetchRedirected() {
+  const fetchOrigin = async (signal?: AbortSignal) => {
+    const resp = await fetch(event.request, { signal });
+    abortController?.abort();
+    return resp;
+  };
+  const fetchRedirected = async (signal?: AbortSignal) => {
     const newUrl =
       targetBaseUrl +
       url.pathname.slice(1) + // Remove leading "/"
@@ -31,7 +59,8 @@ sw.addEventListener("fetch", event => {
     // Handle redirects like "https://cdn/path" to "https://cdn/path/"
     // NOTE: or return a transformed redirect response?
     const fetchOptions: RequestInit = {
-      redirect: "follow"
+      redirect: "follow",
+      signal
     };
 
     let response = await fetch(newUrl, fetchOptions);
@@ -49,23 +78,11 @@ sw.addEventListener("fetch", event => {
       throw null;
     }
 
+    abortController?.abort();
     return response;
   }
 
-  // Return the first resolved promise's value,
-  // or the [0]'s error if all rejected
-  function race(promises: Promise<Response>[]): Promise<Response> {
-    let rejectedCount = 0;
-    const errors = new Array<Error>(promises.length);
-    return new Promise((resolve, reject) =>
-      promises.forEach((promise, i) =>
-        promise.then(resolve).catch(e => {
-          errors[i] = e;
-          if (++rejectedCount === promises.length) reject(errors[0]);
-        })
-      )
-    );
-  }
-
-  event.respondWith(race([fetchOrigin(), fetchRedirected()]));
+  event.respondWith(
+    Promise.any([fetchOrigin(abortController?.signal), fetchRedirected(abortController?.signal)])
+  );
 });
