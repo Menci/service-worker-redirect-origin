@@ -18,35 +18,54 @@ sw.addEventListener("fetch", event => {
     return;
   }
 
-  // Intercept the request
-  const newUrl =
-    targetBaseUrl +
-    url.pathname.slice(1) + // Remove leading "/"
-    url.search;
+  function fetchOrigin() {
+    return fetch(event.request);
+  }
 
-  const fetchOptions: RequestInit = {
-    redirect: "follow"
-  };
+  async function fetchRedirected() {
+    const newUrl =
+      targetBaseUrl +
+      url.pathname.slice(1) + // Remove leading "/"
+      url.search;
 
-  event.respondWith(
-    (async () => {
-      try {
-        let response = await fetch(newUrl, fetchOptions);
-        if (response.status === 404 && _404Page) {
-          response = await fetch(targetBaseUrl + _404Page, fetchOptions);
-        }
+    // Handle redirects like "https://cdn/path" to "https://cdn/path/"
+    // NOTE: or return a transformed redirect response?
+    const fetchOptions: RequestInit = {
+      redirect: "follow"
+    };
 
-        if (!response.ok) {
-          // Oops! the service worker CDN may not available now
-          // Fallback to the original URL
-          return fetch(event.request, fetchOptions);
-        }
+    let response = await fetch(newUrl, fetchOptions);
 
-        return response;
-      } catch {
-        // Network error on fetch()
-        return fetch(event.request, fetchOptions);
-      }
-    })()
-  );
+    // Handle 404 for static sites
+    if (response.status === 404 && _404Page) {
+      response = await fetch(targetBaseUrl + _404Page, fetchOptions);
+    }
+
+    if (!response.ok) {
+      // Oops! the service worker CDN may not available now
+      // Fallback to the original URL
+
+      // This error won't be used, just to indicate the fetch failed
+      throw null;
+    }
+
+    return response;
+  }
+
+  // Return the first resolved promise's value,
+  // or the [0]'s error if all rejected
+  function race(promises: Promise<Response>[]): Promise<Response> {
+    let rejectedCount = 0;
+    const errors = new Array<Error>(promises.length);
+    return new Promise((resolve, reject) =>
+      promises.forEach((promise, i) =>
+        promise.then(resolve).catch(e => {
+          errors[i] = e;
+          if (++rejectedCount === promises.length) reject(errors[0]);
+        })
+      )
+    );
+  }
+
+  event.respondWith(race([fetchOrigin(), fetchRedirected()]));
 });
