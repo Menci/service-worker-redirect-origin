@@ -1,5 +1,5 @@
 /// <reference no-default-lib="true" />
-/// <reference lib="es2020" />
+/// <reference lib="es2021" />
 /// <reference lib="WebWorker" />
 
 const sw = self as unknown as ServiceWorkerGlobalScope & typeof globalThis;
@@ -7,6 +7,26 @@ const sw = self as unknown as ServiceWorkerGlobalScope & typeof globalThis;
 const query = new URL(sw.location.href).searchParams;
 const targetBaseUrl = query.get("t");
 const _404Page = query.get("404");
+
+if (!Promise.any) {
+  Promise.any = <T>(promises: Iterable<T | Promise<T>>): Promise<Awaited<T>> => {
+    return Promise.all(
+      [...promises].map(promise => {
+        return new Promise((resolve, reject) =>
+          Promise.resolve(promise)
+            // When a promise fulfilled, we call reject to bail out Promise.all
+            // When a promise rejected, we call resolve to continue Promise.all
+            .then(reject, resolve)
+        );
+      })
+    ).then(
+      // The resolved are actually aggregated errors
+      errors => Promise.reject(errors),
+      // The reject is the first fulfilled promise (which causes the bail out)
+      fastest => Promise.resolve<Awaited<T>>(fastest)
+    );
+  };
+}
 
 sw.addEventListener("install", event => {
   event.waitUntil(sw.skipWaiting());
@@ -18,11 +38,39 @@ sw.addEventListener("fetch", event => {
     return;
   }
 
-  function fetchOrigin() {
-    return fetch(event.request);
-  }
+  const abortEvent = new Event("abortFetch");
+  const eventTarget = new EventTarget();
+  const withAbort = <F extends (...args: any[]) => Promise<Response>>(
+    fetchWithSignal: (signal: AbortSignal) => F
+  ): ((...args: Parameters<F>) => Promise<Response>) => {
+    // Abort other doFetch()-es when the first doFetch() resolved with true
+    const abortController = typeof AbortController === "function" && new AbortController();
 
-  async function fetchRedirected() {
+    // When the abort event triggered, don't abort the current fetch() if `fetchSucceed` is true
+    let fetchSucceed = false;
+    if (abortController) {
+      eventTarget.addEventListener(abortEvent.type, () => {
+        if (!fetchSucceed) abortController.abort();
+      });
+    }
+
+    const doFetch = fetchWithSignal(abortController ? abortController.signal : undefined);
+    return async (...args: Parameters<F>) => {
+      const response = await doFetch(...args);
+      if (response) {
+        // Abort other fetch()-es
+        fetchSucceed = true;
+        eventTarget.dispatchEvent(abortEvent);
+        return response;
+      }
+    };
+  };
+
+  const fetchOrigin = withAbort(signal => async () => {
+    const resp = await fetch(event.request, { signal });
+    return resp;
+  });
+  const fetchRedirected = withAbort(signal => async () => {
     const newUrl =
       targetBaseUrl +
       url.pathname.slice(1) + // Remove leading "/"
@@ -31,7 +79,8 @@ sw.addEventListener("fetch", event => {
     // Handle redirects like "https://cdn/path" to "https://cdn/path/"
     // NOTE: or return a transformed redirect response?
     const fetchOptions: RequestInit = {
-      redirect: "follow"
+      redirect: "follow",
+      signal
     };
 
     let response = await fetch(newUrl, fetchOptions);
@@ -50,22 +99,7 @@ sw.addEventListener("fetch", event => {
     }
 
     return response;
-  }
+  });
 
-  // Return the first resolved promise's value,
-  // or the [0]'s error if all rejected
-  function race(promises: Promise<Response>[]): Promise<Response> {
-    let rejectedCount = 0;
-    const errors = new Array<Error>(promises.length);
-    return new Promise((resolve, reject) =>
-      promises.forEach((promise, i) =>
-        promise.then(resolve).catch(e => {
-          errors[i] = e;
-          if (++rejectedCount === promises.length) reject(errors[0]);
-        })
-      )
-    );
-  }
-
-  event.respondWith(race([fetchOrigin(), fetchRedirected()]));
+  event.respondWith(Promise.any([fetchOrigin(), fetchRedirected()]));
 });
