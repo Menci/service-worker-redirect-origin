@@ -54,7 +54,7 @@ sw.addEventListener("fetch", event => {
       });
     }
 
-    const doFetch = fetchWithSignal(abortController ? abortController.signal : null);
+    const doFetch = fetchWithSignal(abortController ? abortController.signal : undefined);
     return async (...args: Parameters<F>) => {
       const response = await doFetch(...args);
       if (response) {
