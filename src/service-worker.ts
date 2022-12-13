@@ -101,5 +101,16 @@ sw.addEventListener("fetch", event => {
     return response;
   });
 
-  event.respondWith(Promise.any([fetchOrigin(), fetchRedirected()]));
+  async function postProcessResponse(response: Response) {
+    if (event.request.mode === "same-origin") {
+      return new Response(response.body, {
+        headers: response.headers,
+        status: response.status,
+        statusText: response.statusText
+      });
+    }
+    return response;
+  }
+
+  event.respondWith(Promise.any([fetchOrigin(), fetchRedirected()]).then(postProcessResponse));
 });
